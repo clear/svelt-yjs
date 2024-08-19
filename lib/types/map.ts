@@ -6,7 +6,7 @@ export type YReadableMap<T> = Readable<Map<string, T>> & { y: Y.Map<T> };
 
 export function readableMap<T>(map: Y.Map<T>): YReadableMap<T> {
   let value: Map<string, T> = new Map(Object.entries(map.toJSON()));
-  let subs = [];
+  const subs: Subscriber<Map<string, T>>[] = [];
 
   const setValue = (newValue: Map<string, T>) => {
     if (value === newValue) return;
@@ -18,13 +18,13 @@ export function readableMap<T>(map: Y.Map<T>): YReadableMap<T> {
     subs.forEach((sub) => sub(value));
   };
 
-  const observer = (event: Y.YMapEvent<T>, _transaction) => {
+  const observer = (event: Y.YMapEvent<T>, _transaction: Y.Transaction) => {
     const target = event.target as Y.Map<T>;
     setValue(new Map(Object.entries(target.toJSON())));
   };
 
   const subscribe = (handler: Subscriber<Map<string, T>>): Unsubscriber => {
-    subs = [...subs, handler];
+    const subscriberIndex = subs.push(handler) - 1;
 
     if (subs.length === 1) {
       // update current value to latest that yjs has since we haven't been observing
@@ -38,7 +38,7 @@ export function readableMap<T>(map: Y.Map<T>): YReadableMap<T> {
 
     // return unsubscribe function
     return () => {
-      subs = subs.filter((sub) => sub !== handler);
+      subs.splice(subscriberIndex, 1);
       if (subs.length === 0) {
         map.unobserve(observer);
       }
